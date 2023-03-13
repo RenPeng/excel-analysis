@@ -5,6 +5,7 @@ import string
 import re
 import copy
 import traceback
+from decimal import Decimal
 
 from PyQt5.QtWidgets import QApplication, QMessageBox, QFileDialog, QWidget, QMainWindow
 from PyQt5.QtGui import QIcon
@@ -91,7 +92,6 @@ class extraFunc:
                     try:
                         assert int(float(start) *  start_base) < int(float(end) * end_base), "规则错误（a-b;a<b）"
                     except Exception as e:
-                        print(((start,start_base),(end,end_base)))
                         return None, exceptError(traceback.format_exc(), reason=str(e))
                     
                     try:
@@ -154,6 +154,8 @@ class excelSourceProcess(extraFunc):
         # 额外的Widget初始化
         self.extr_widget = extraWidgets(self)
 
+        self.configFileAnalysisDone = False
+
         self.step1ConfigFileChooseBT.clicked.connect(lambda: self.configFileHandler())
         self.step1SourceFileChooseBT.clicked.connect(lambda: self.sourceFileHandler())
         
@@ -178,11 +180,10 @@ class excelSourceProcess(extraFunc):
         self.progressBar.setValue(progress)
 
 
-    def baseInfoload(self):
+    def analysisConfigFile(self):
         excel_file = self.step1ConfigFileChooseRV.text()
         if not os.path.exists(excel_file):
-            emsg = "配件、折扣信息配置Excel文件：【{}】不存在".format(excel_file)
-            self.extr_widget.errorMsg(emsg)
+            self.extr_widget.errorMsg(simpleError("配件、折扣信息配置Excel文件：【{}】不存在".format(excel_file)))
             return
 
         configs = {}.fromkeys(["peijian", "discount", "activity"], {})
@@ -197,6 +198,9 @@ class excelSourceProcess(extraFunc):
             self.extr_widget.errorMsg(except_error)
             return
         else:
+            self.comboBox_3.clear()
+            self.comboBox.clear()
+            self.comboBox_2.clear()
             # todo 默认按照预定的sheetname进行数据查找
             index = 0
             for sheet_name in conf_excel.sheetnames:
@@ -210,14 +214,13 @@ class excelSourceProcess(extraFunc):
             # ======================================================================================================
             # 产品及配件价格表
             if "产品及配件价格表" not in conf_excel.sheetnames:
-                emsg = "【产品及配件价格表】不存在，请检查"
-                self.extr_widget.errorMsg(emsg)
+                self.extr_widget.errorMsg(simpleError("【产品及配件价格表】不存在，请检查"))
                 return
             else:
                 sheet_price = conf_excel["产品及配件价格表"]
                 # 样例数据（配件价格表）
                 # {
-                #     "餐具": {"GuiGe": ["5套"], "price": 5},
+                #     "餐具": {"GuiGe": ["5套"], "JiaGe": 5},
                 #     "数字蜡烛": {"GuiGe": ["数字0", "数字1"], "JiaGe": 5},
                 # }
                 valid_HPMC = ["餐具", "派对生日蜡烛", "生日蜡烛", "生日帽", "数字蜡烛", "运费/差价"]
@@ -234,21 +237,19 @@ class excelSourceProcess(extraFunc):
                             if HuoPinMingCheng in peijian_config:
                                 if peijian_config[HuoPinMingCheng] is None:
                                     peijian_config[HuoPinMingCheng] = {
-                                        "GuiGe": [], "JiaGe": 0
+                                        "GuiGe": [], "JiaGe": Decimal(0).quantize(Decimal("0.00"))
                                     }
                                     peijian_config[HuoPinMingCheng]["GuiGe"].append(GuiGe)
-                                    peijian_config[HuoPinMingCheng]["JiaGe"]=JiaGe
+                                    peijian_config[HuoPinMingCheng]["JiaGe"]=Decimal(JiaGe).quantize(Decimal("0.00"))
                                 else:
                                     peijian_config[HuoPinMingCheng]["GuiGe"].append(GuiGe)
                         else:
                             break
                         index += 1
                 else:
-                    emsg1 = "表格未找到任何值，可能是个空表格？"
-                    self.extr_widget.errorMsg(emsg1)
+                    self.extr_widget.errorMsg(simpleError("表格未找到任何值，可能是个空表格？"))
                     return
                 configs["peijian"] = peijian_config
-                print(peijian_config)
             # ======================================================================================================
             
             # ------------------------------------------佳满勇气--各渠道折扣--------------------------------------------
@@ -261,8 +262,7 @@ class excelSourceProcess(extraFunc):
             # }
             discount_config = {}
             if "佳满勇气--各渠道折扣" not in conf_excel.sheetnames:
-                emsg = "【佳满勇气--各渠道折扣】不存在，请检查"
-                self.extr_widget.errorMsg(emsg)
+                self.extr_widget.errorMsg(simpleError("【佳满勇气--各渠道折扣】不存在，请检查"))
                 return
             else:
                 sheet_discount = conf_excel["佳满勇气--各渠道折扣"]
@@ -293,12 +293,10 @@ class excelSourceProcess(extraFunc):
                             break
                         index1 += 1
                 else:
-                    emsg2 = "表格未找到任何值，可能是个空表格？"
-                    self.extr_widget.errorMsg(emsg2)
+                    self.extr_widget.errorMsg(simpleError("表格未找到任何值，可能是个空表格？"))
                     return
 
                 configs["discount"] = discount_config
-                print(discount_config)
 
             # ------------------------------------------佳满勇气--各渠道折扣--------------------------------------------
 
@@ -307,15 +305,23 @@ class excelSourceProcess(extraFunc):
             # 各渠道活动
             # ¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥各渠道活动¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥
             conf_excel.close()
+
+        self.configFileAnalysisDone = True
         return configs
 
-    def step1ProcessWorker(self):       
-        params = {
-            "source_file": self.step1SourceFileChooseRV.text(),
-            "source_sheet": self.step1SourceDataSheetSelect.currentData()
-        }
-        self.processWorkerThread.runParams(**params)
-        self.processWorkerThread.start()
+    def step1ProcessWorker(self):
+        if self.configFileAnalysisDone:
+            params = {
+                "source_file": self.step1SourceFileChooseRV.text(),
+                "source_sheet": self.step1SourceDataSheetSelect.currentData(),
+                "guessSheetXY": self.guessSheetXY,
+                "configs": self.analysisConfigFile()
+            }
+            self.processWorkerThread.runParams(**params)
+            self.processWorkerThread.start()
+        else:
+            self.extr_widget.errorMsg(simpleError("配件信息配置分析出错，请检查后在继续"))
+            return
 
     def step1ExportWorker(self): pass
 
@@ -323,7 +329,7 @@ class excelSourceProcess(extraFunc):
         filename = self.extr_widget.fieleChoose()
         if filename:
             self.step1ConfigFileChooseRV.setText(filename[0])
-        self.baseInfoload()
+        self.analysisConfigFile()
 
     def sourceFileHandler(self):
         filename = self.extr_widget.fieleChoose()
@@ -331,8 +337,7 @@ class excelSourceProcess(extraFunc):
             self.step1SourceFileChooseRV.setText(filename[0])
         
         if not os.path.exists(self.step1SourceFileChooseRV.text()):
-            emsg = "Excel文件：【{}】不存在".format(self.step1SourceFileChooseRV.text())
-            self.extr_widget.errorMsg(emsg)
+            self.extr_widget.errorMsg(simpleError("Excel文件：【{}】不存在".format(self.step1SourceFileChooseRV.text())))
             return
 
         sfile = load_workbook(filename=self.step1SourceFileChooseRV.text(), read_only=True)
