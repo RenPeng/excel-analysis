@@ -2,6 +2,7 @@ import traceback
 import datetime
 from decimal import Decimal
 import re
+import os
 
 from openpyxl import load_workbook
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -9,8 +10,9 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from error import simpleError, exceptError, baseError
 
 class step1ProcessWorker(QThread):
-    # 0: 阶段 1:进度 
-    signalProgress = pyqtSignal(str, int)
+    # 0: workername,1: 阶段, 2:进度 
+    # progres = ["stage-desc", "stage", "other"]
+    signalProgress = pyqtSignal(str, list)
     # 0: baseError
     signalError = pyqtSignal(baseError)
 
@@ -22,7 +24,7 @@ class step1ProcessWorker(QThread):
         #     "guessSheetXY": self.guessSheetXY,
         #     "configs": configs
         # }
-    
+
     def run(self):
         try:
             sfile = load_workbook(filename=self.params["source_file"])
@@ -79,6 +81,13 @@ class step1ProcessWorker(QThread):
                 rowBegin += 1
                 continue
 
+            current_percent = int((row_number/(sheet.max_row * 2)) * 100)
+
+            self.signalProgress.emit("step1ProcessWorker",[
+                "【数据处理阶段】删除【订单状态】中取消的订单，【追加备注】中带有（取消/二次配送/不接算）的订单", 
+                current_percent]
+            )
+
             # 需求1：删除【订单状态】中取消的订单，【追加备注】中带有（取消/二次配送/不接算）的订单
             osv_ = sheet.cell(row=rowBegin, column=OrderStatus).value
             ocv_ = sheet.cell(row=rowBegin, column=OrderComment).value
@@ -89,6 +98,9 @@ class step1ProcessWorker(QThread):
                 if ("取消" in ocv_ or "不结算" in  ocv_ or "二次配送" in ocv_):
                     sheet.delete_rows(rowBegin)
 
+            self.signalProgress.emit("step1ProcessWorker", [
+                "【数据处理阶段】【下单时间】【承诺发货时间】拆分出日期，删掉时间部分", current_percent]
+            )
             # 需求2：【下单时间】【承诺发货时间】拆分出日期，删掉时间部分
             octv__ = sheet.cell(row=rowBegin, column=OrderCreateTime).value
             odtv__ = sheet.cell(row=rowBegin, column=OrderDeliveryTime).value
@@ -105,6 +117,9 @@ class step1ProcessWorker(QThread):
             odv___ = sheet.cell(row=rowBegin, column=OrderDetail).value
             oitv___ = sheet.cell(row=rowBegin, column=OrderItemTotal).value
 
+            self.signalProgress.emit("step1ProcessWorker", [
+                "【数据处理阶段】拆分货品摘要，计算货款合计、配件费用", current_percent]
+            )
             # 初始化值（货款合计Fixed）
             if oitv___:
                 sheet.cell(row=rowBegin, column=OrderItemTotalFixed, value=Decimal(oitv___).quantize(Decimal("0.00")))
@@ -159,6 +174,10 @@ class step1ProcessWorker(QThread):
                 secondLoop += 1
                 continue
 
+            current_percent = int(((row_number+sheet.max_row)/(sheet.max_row * 2))  * 100)
+
+            self.signalProgress.emit("step1ProcessWorker", ["【数据处理阶段】计算渠道折扣", current_percent])
+
             qd_name_2_ = sheet.cell(row=secondLoop, column=QuDao).value
             qd_discount = 1.0
             # 渠道销售总额
@@ -177,13 +196,16 @@ class step1ProcessWorker(QThread):
                             break
             sheet.cell(row=secondLoop, column=QuDaoDiscount, value=qd_discount)
 
+            self.signalProgress.emit("step1ProcessWorker", ["【数据处理阶段】计算货款合计", current_percent])
+
             # 计算总额
             oitfv2_ = sheet.cell(row=rowBegin, column=OrderItemTotalFixed).value
             oev2_ = sheet.cell(row=rowBegin, column=OrderExtra).value
             op2_ = sheet.cell(row=rowBegin, column=OrderPostage).value
             sheet.cell(row=secondLoop, column=OrderTotal, value="=SUM(PRODUCT(K{0}, M{0}), L{0}, O{0})".format(row_number+ 1))
             secondLoop += 1
-        sfile.save("new_file.xlsx")
-
-        print("done!!!!!!!!!")
-        return
+        
+        result_filename = "result.xlsx"
+        abs_filename = os.path.join(os.path.dirname(__file__), result_filename)
+        sfile.save(filename=abs_filename)
+        self.signalProgress.emit("step1ProcessWorker", ["处理完成".format(self.params["source_file"]), 100, abs_filename])

@@ -1,0 +1,20 @@
+
+参数参考链接：
+https://pyinstaller.org/en/stable/usage.html
+
+MacOS
+pyinstaller -w -c -i resource/xixi.jpeg \
+ -p /Users/renpeng/code/project_analysis \
+ -p /Users/renpeng/code/project_analysis/venv/lib/python3.9/site-packages \
+ --collect-all openpyxl \
+ --collect-all et-xmlfile \
+ --collect-all python-dotenv \
+ --collect-all click  main.py
+
+
+Windows 10:
+打包成目录：
+pyinstaller -n Main -c -i resources\ft.ico --collect-all proxmoxer  --collect-all openpyxl --collect-all et-xmlfile --collect-all six --collect-all python-dotenv --collect-all PyNaCl --collect-all pycparser --collect-all paramiko --collect-all cryptography --collect-all click --collect-all cffi --collect-all bcrypt main.py
+
+打包成一个文件：
+pyinstaller -n Main -F -c -i resources\ft.ico --collect-all proxmoxer  --collect-all openpyxl --collect-all et-xmlfile --collect-all six --collect-all python-dotenv --collect-all PyNaCl --collect-all pycparser --collect-all paramiko --collect-all cryptography --collect-all click --collect-all cffi --collect-all bcrypt main.py

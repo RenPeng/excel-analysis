@@ -11,3 +11,16 @@ PyQt5-Qt5==5.15.2
 PyQt5-sip==12.11.1
 python-dotenv==0.21.1
 qt5-applications==5.15.2.2.2
+
+
+# bussiness
+openpyxl==3.0.10
+et-xmlfile==1.1.0
+
+
+# build 
+pyinstaller==5.9.0
+
+
+# options
+Pillow==9.4.0

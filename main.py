@@ -6,6 +6,7 @@ import re
 import copy
 import traceback
 from decimal import Decimal
+from shutil import copyfile
 
 from PyQt5.QtWidgets import QApplication, QMessageBox, QFileDialog, QWidget, QMainWindow
 from PyQt5.QtGui import QIcon
@@ -33,16 +34,19 @@ class extraWidgets(object):
         baseBox.setDetailedText(emsg.detailedMSG)
         baseBox.exec()
   
-    def fieleChoose(self):
-        dlog_fileChoose = QFileDialog(self.mainwindow)
-        dlog_fileChoose.setFileMode(QFileDialog.ExistingFiles)
-        dlog_fileChoose.setViewMode(QFileDialog.Detail)
-        # 设置文件过滤器
-        dlog_fileChoose.setNameFilter("All Compressed Fsiles (*.xlsx)")
-
-        if dlog_fileChoose.exec_():
-            return dlog_fileChoose.selectedFiles()
-
+    def fieleChoose(self, mode="select"):
+        if mode == "select":
+            dlog_fileChoose = QFileDialog(self.mainwindow)
+            dlog_fileChoose.setFileMode(QFileDialog.ExistingFiles)
+            dlog_fileChoose.setViewMode(QFileDialog.Detail)
+            # 设置文件过滤器
+            dlog_fileChoose.setNameFilter("Microsoft Excel files (*.xlsx)")
+            if dlog_fileChoose.exec_():
+                return dlog_fileChoose.selectedFiles()
+        elif mode=="saveFile":
+            dlog_fileChoose = QFileDialog.getSaveFileName(parent=self.mainwindow, caption="保存文件",
+                filter="Microsoft Excel files (*.xlsx)")
+            return dlog_fileChoose
 
 class extraFunc:
     @staticmethod
@@ -154,12 +158,17 @@ class excelSourceProcess(extraFunc):
         # 额外的Widget初始化
         self.extr_widget = extraWidgets(self)
 
+        # 配置文件是否分析完成
         self.configFileAnalysisDone = False
+        self.sourceFileAnalysisDone = False
+        self.sourceFileAnalysisResult = ""
 
         self.step1ConfigFileChooseBT.clicked.connect(lambda: self.configFileHandler())
         self.step1SourceFileChooseBT.clicked.connect(lambda: self.sourceFileHandler())
-        
-        
+
+        # 进度条值范围
+        self.progressBar.setRange(0, 100)
+
         # 分析
         self.step1ProcessBT.clicked.connect(lambda: self.step1ProcessWorker())
         self.processWorkerThread = process.step1ProcessWorker()
@@ -167,18 +176,21 @@ class excelSourceProcess(extraFunc):
         self.processWorkerThread.signalError.connect(self.handleError)
 
         # 导出
-        # self.step1ExportBT.clicked.connect(lambda: self.step1ExportWorker())
-        # self.importThread = process.ImportThread()
-        # self.importThread.signalProgress.connect(self.handleProgress)
-        # self.importThread.signalError.connect(self.handleError)
+        self.step1ExportBT.clicked.connect(lambda: self.step1ExportWorker())
     
     def handleError(self, error):
         self.extr_widget.errorMsg(error)
         return
 
-    def handleProgress(self, stage, progress):
-        self.progressBar.setValue(progress)
+    def handleProgress(self, worker, progres):
+        self.processTitle.setText(progres[0])
 
+        self.progressBar.setValue(progres[1])
+
+        if worker == "step1ProcessWorker":
+            if progres[1] == 100:
+                self.sourceFileAnalysisDone = True
+                self.sourceFileAnalysisResult = progres[2]
 
     def analysisConfigFile(self):
         excel_file = self.step1ConfigFileChooseRV.text()
@@ -308,9 +320,12 @@ class excelSourceProcess(extraFunc):
 
         self.configFileAnalysisDone = True
         return configs
-
+    
     def step1ProcessWorker(self):
         if self.configFileAnalysisDone:
+            if self.step1SourceDataSheetSelect.currentData() is None:
+                self.extr_widget.errorMsg(simpleError("请选择：源Excel表格对应的月份数据"))
+                return
             params = {
                 "source_file": self.step1SourceFileChooseRV.text(),
                 "source_sheet": self.step1SourceDataSheetSelect.currentData(),
@@ -319,17 +334,30 @@ class excelSourceProcess(extraFunc):
             }
             self.processWorkerThread.runParams(**params)
             self.processWorkerThread.start()
+            self.progressBar.reset()
+
         else:
             self.extr_widget.errorMsg(simpleError("配件信息配置分析出错，请检查后在继续"))
             return
 
-    def step1ExportWorker(self): pass
+    def step1ExportWorker(self):
+        if self.sourceFileAnalysisDone:
+            filename = self.extr_widget.fieleChoose(mode="saveFile")
+            if filename[0]:
+                if os.path.exists(self.sourceFileAnalysisResult):
+                    copyfile(self.sourceFileAnalysisResult, filename[0])
+                else:
+                    self.extr_widget.errorMsg(simpleError("分析结果文件不存在！！"))
+                    return
+        else:
+            self.extr_widget.errorMsg(simpleError("源数据文件表格还未分析完成"))
+            return 
 
     def configFileHandler(self):
         filename = self.extr_widget.fieleChoose()
         if filename:
             self.step1ConfigFileChooseRV.setText(filename[0])
-        self.analysisConfigFile()
+            self.analysisConfigFile()
 
     def sourceFileHandler(self):
         filename = self.extr_widget.fieleChoose()
@@ -382,12 +410,7 @@ class toolWindow(QMainWindow, Ui_MainWindow, excelSourceProcess):
         # exportResultBT
         # self.scene_export_bt.clicked.connect(lambda: self.startExportThread())
 
-        # # 计时器
-        # self.timeThread = timeWorker.TimeThread()
-        # self.timeThread.timer.connect(self.handleTime)
-        # # 进度条设置区间数
-        # self.analysisProgressBar.setMaximum(100)
-        # self.analysisProgressBar.setMinimum(0)
+
 
     def sourceFileChooseHandler(self):
         # sourceWS

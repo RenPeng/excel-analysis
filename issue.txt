@@ -1,0 +1,18 @@
+问题1:
+      File "/usr/local/Cellar/python@3.9/3.9.1_3/Frameworks/Python.framework/Versions/3.9/lib/python3.9/subprocess.py", line 947, in __init__
+        self._execute_child(args, executable, preexec_fn, close_fds,
+      File "/usr/local/Cellar/python@3.9/3.9.1_3/Frameworks/Python.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1739, in _execute_child
+        env_list.append(k + b'=' + os.fsencode(v))
+      File "/usr/local/Cellar/python@3.9/3.9.1_3/Frameworks/Python.framework/Versions/3.9/lib/python3.9/os.py", line 810, in fsencode
+        filename = fspath(filename)  # Does type-checking of `filename`.
+    TypeError: expected str, bytes or os.PathLike object, not int
+    ----------------------------------------
+    ERROR: Failed building wheel for sip
+  Failed to build sip
+  ERROR: Could not build wheels for sip which use PEP 517 and cannot be installed directly
+  WARNING: You are using pip version 20.2.3; however, version 23.0.1 is available.
+  You should consider upgrading via the '/Users/renpeng/code/project_analysis/venv/bin/python3 -m pip install --upgrade pip' command.
+  ----------------------------------------
+ERROR: Command errored out with exit status 1: /Users/renpeng/code/project_analysis/venv/bin/python3 /Users/renpeng/code/project_analysis/venv/lib/python3.9/site-packages/pip install --ignore-installed --no-user --prefix /private/var/folders/bp/s33jyk2d42b66nb0qlxg4zqr0000gn/T/pip-build-env-26elivtr/overlay --no-warn-script-location --no-binary :none: --only-binary :none: -i https://pypi.org/simple -- 'sip >=5.3, <7' 'PyQt-builder >=1.9, <2' Check the logs for full command output.
+
+解决1：升级pip解决 # pip install --upgrade pip
