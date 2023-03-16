@@ -668,4 +668,4 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab2), _translate("MainWindow", "对账分析工具"))
         self.actionnew.setText(_translate("MainWindow", "new"))
         self.actionnew.setToolTip(_translate("MainWindow", "<html><head/><body><p>,,,,</p></body></html>"))
-import resource.icon_rc
+

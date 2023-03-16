@@ -11,10 +11,11 @@ from shutil import copyfile
 from PyQt5.QtWidgets import QApplication, QMessageBox, QFileDialog, QWidget, QMainWindow
 from PyQt5.QtGui import QIcon
 
-from ui.window import Ui_MainWindow
-from worker import process
 
-from error import contentError, exceptError, simpleError
+from ui.window import Ui_MainWindow
+import resources.icon_rc
+from worker import step1_worker
+from error import contentError, exceptError, simpleError, baseError
 
 from openpyxl import load_workbook
 
@@ -71,7 +72,7 @@ class extraFunc:
         return sheetXY
 
     @staticmethod
-    def getRanged(desc: str)-> (range, str):
+    def getRanged(desc: str)-> (range, baseError):
         if desc:
             if desc[0] in string.digits and '-' in desc:
                 # 区间的规则
@@ -171,7 +172,7 @@ class excelSourceProcess(extraFunc):
 
         # 分析
         self.step1ProcessBT.clicked.connect(lambda: self.step1ProcessWorker())
-        self.processWorkerThread = process.step1ProcessWorker()
+        self.processWorkerThread = step1_worker.step1ProcessWorker()
         self.processWorkerThread.signalProgress.connect(self.handleProgress)
         self.processWorkerThread.signalError.connect(self.handleError)
 

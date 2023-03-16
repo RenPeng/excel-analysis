@@ -205,7 +205,13 @@ class step1ProcessWorker(QThread):
             sheet.cell(row=secondLoop, column=OrderTotal, value="=SUM(PRODUCT(K{0}, M{0}), L{0}, O{0})".format(row_number+ 1))
             secondLoop += 1
         
+        
+        
         result_filename = "result.xlsx"
-        abs_filename = os.path.join(os.path.dirname(__file__), result_filename)
-        sfile.save(filename=abs_filename)
+        abs_filename = os.path.join(os.path.dirname(os.path.dirname(__file__)), result_filename)
+        try:
+            sfile.save(filename=abs_filename)
+        except Exception as e:
+            self.signalError.emit(exceptError(traceback.format_exc(), reason="保存文件失败（{}）".format(abs_filename)))
+            return
         self.signalProgress.emit("step1ProcessWorker", ["处理完成".format(self.params["source_file"]), 100, abs_filename])

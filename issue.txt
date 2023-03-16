@@ -1,4 +1,4 @@
-问题1:
+问题1(venv模式):
       File "/usr/local/Cellar/python@3.9/3.9.1_3/Frameworks/Python.framework/Versions/3.9/lib/python3.9/subprocess.py", line 947, in __init__
         self._execute_child(args, executable, preexec_fn, close_fds,
       File "/usr/local/Cellar/python@3.9/3.9.1_3/Frameworks/Python.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1739, in _execute_child
