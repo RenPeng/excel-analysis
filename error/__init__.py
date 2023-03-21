@@ -5,7 +5,7 @@ class baseError(object):
         self.reason = reason
 
     def __str__(self):
-        return "<{} Error: {}>".format(self.etype.upper(), self.reason)
+        return "{} Error: {}".format(self.etype.upper(), self.reason)
 
     @property
     def detailedMSG(self):

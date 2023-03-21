@@ -194,133 +194,137 @@ class excelSourceProcess(extraFunc):
                 self.sourceFileAnalysisResult = progres[2]
 
     def analysisConfigFile(self):
-        excel_file = self.step1ConfigFileChooseRV.text()
-        if not os.path.exists(excel_file):
-            self.extr_widget.errorMsg(simpleError("配件、折扣信息配置Excel文件：【{}】不存在".format(excel_file)))
-            return
-
-        configs = {}.fromkeys(["peijian", "discount", "activity"], {})
-
         try:
-            conf_excel = load_workbook(filename=excel_file, read_only=True)
-        except Exception as e:
-            except_error = exceptError(
-                traceback.format_exc(),
-                reason="配件、折扣信息配置Excel文件：【{}】打开失败".format(excel_file)
-            )
-            self.extr_widget.errorMsg(except_error)
-            return
-        else:
-            self.comboBox_3.clear()
-            self.comboBox.clear()
-            self.comboBox_2.clear()
-            # todo 默认按照预定的sheetname进行数据查找
-            index = 0
-            for sheet_name in conf_excel.sheetnames:
-                self.comboBox_3.insertItem(index, sheet_name)
-                self.comboBox_3.setItemData(index, sheet_name)
-                self.comboBox.insertItem(index, sheet_name)
-                self.comboBox.setItemData(index, sheet_name)
-                self.comboBox_2.insertItem(index, sheet_name)
-                self.comboBox_2.setItemData(index, sheet_name)
-                index += 1
-            # ======================================================================================================
-            # 产品及配件价格表
-            if "产品及配件价格表" not in conf_excel.sheetnames:
-                self.extr_widget.errorMsg(simpleError("【产品及配件价格表】不存在，请检查"))
+            excel_file = self.step1ConfigFileChooseRV.text()
+            if not os.path.exists(excel_file):
+                self.extr_widget.errorMsg(simpleError("配件、折扣信息配置Excel文件：【{}】不存在".format(excel_file)))
+                return
+
+            configs = {}.fromkeys(["peijian", "discount", "activity"], {})
+
+            try:
+                conf_excel = load_workbook(filename=excel_file, read_only=True)
+            except Exception as e:
+                except_error = exceptError(
+                    traceback.format_exc(),
+                    reason="配件、折扣信息配置Excel文件：【{}】打开失败".format(excel_file)
+                )
+                self.extr_widget.errorMsg(except_error)
                 return
             else:
-                sheet_price = conf_excel["产品及配件价格表"]
+                self.comboBox_3.clear()
+                self.comboBox.clear()
+                self.comboBox_2.clear()
+                # todo 默认按照预定的sheetname进行数据查找
+                index = 0
+                for sheet_name in conf_excel.sheetnames:
+                    self.comboBox_3.insertItem(index, sheet_name)
+                    self.comboBox_3.setItemData(index, sheet_name)
+                    self.comboBox.insertItem(index, sheet_name)
+                    self.comboBox.setItemData(index, sheet_name)
+                    self.comboBox_2.insertItem(index, sheet_name)
+                    self.comboBox_2.setItemData(index, sheet_name)
+                    index += 1
+                # ======================================================================================================
+                # 产品及配件价格表
+                if "产品及配件价格表" not in conf_excel.sheetnames:
+                    self.extr_widget.errorMsg(simpleError("【产品及配件价格表】不存在，请检查"))
+                    return
+                else:
+                    sheet_price = conf_excel["产品及配件价格表"]
+                    # 样例数据（配件价格表）
+                    # {
+                    #     "餐具": {"GuiGe": ["5套"], "JiaGe": 5},
+                    #     "数字蜡烛": {"GuiGe": ["数字0", "数字1"], "JiaGe": 5},
+                    # }
+                    valid_HPMC = ["餐具", "派对生日蜡烛", "生日蜡烛", "生日帽", "数字蜡烛", "运费/差价"]
+                    peijian_config = {}.fromkeys(valid_HPMC)
+                    guessXY = self.guessSheetXY(sheet_price)
+
+                    if guessXY["row"] and guessXY["column"]:
+                        index = 1
+                        while True:
+                            HuoPinMingCheng = sheet_price.cell(row= guessXY["row"] + index, column=guessXY["column"] + 1).value
+                            GuiGe = sheet_price.cell(row= guessXY["row"] + index , column=guessXY["column"] + 2).value
+                            JiaGe = sheet_price.cell(row= guessXY["row"] + index, column=guessXY["column"] + 3).value
+                            if HuoPinMingCheng and GuiGe and JiaGe:
+                                if HuoPinMingCheng in peijian_config:
+                                    if peijian_config[HuoPinMingCheng] is None:
+                                        peijian_config[HuoPinMingCheng] = {
+                                            "GuiGe": [], "JiaGe": Decimal(0).quantize(Decimal("0.00"))
+                                        }
+                                        peijian_config[HuoPinMingCheng]["GuiGe"].append(GuiGe)
+                                        peijian_config[HuoPinMingCheng]["JiaGe"]=Decimal(JiaGe).quantize(Decimal("0.00"))
+                                    else:
+                                        peijian_config[HuoPinMingCheng]["GuiGe"].append(GuiGe)
+                            else:
+                                break
+                            index += 1
+                    else:
+                        self.extr_widget.errorMsg(simpleError("表格未找到任何值，可能是个空表格？"))
+                        return
+                    configs["peijian"] = peijian_config
+                # ======================================================================================================
+                
+                # ------------------------------------------佳满勇气--各渠道折扣--------------------------------------------
+                # 佳满勇气--各渠道折扣
+                # 折扣信息描述语言使用规则语言这一列
                 # 样例数据（配件价格表）
                 # {
-                #     "餐具": {"GuiGe": ["5套"], "JiaGe": 5},
-                #     "数字蜡烛": {"GuiGe": ["数字0", "数字1"], "JiaGe": 5},
+                #     "福多多": [(<RangeObject>, "%90"), (<RangeObject>, "%78")],
+                #     "蛋糕叔叔": [(<RangeObject>, "%78")]
                 # }
-                valid_HPMC = ["餐具", "派对生日蜡烛", "生日蜡烛", "生日帽", "数字蜡烛", "运费/差价"]
-                peijian_config = {}.fromkeys(valid_HPMC)
-                guessXY = self.guessSheetXY(sheet_price)
-
-                if guessXY["row"] and guessXY["column"]:
-                    index = 1
-                    while True:
-                        HuoPinMingCheng = sheet_price.cell(row= guessXY["row"] + index, column=guessXY["column"] + 1).value
-                        GuiGe = sheet_price.cell(row= guessXY["row"] + index , column=guessXY["column"] + 2).value
-                        JiaGe = sheet_price.cell(row= guessXY["row"] + index, column=guessXY["column"] + 3).value
-                        if HuoPinMingCheng and GuiGe and JiaGe:
-                            if HuoPinMingCheng in peijian_config:
-                                if peijian_config[HuoPinMingCheng] is None:
-                                    peijian_config[HuoPinMingCheng] = {
-                                        "GuiGe": [], "JiaGe": Decimal(0).quantize(Decimal("0.00"))
-                                    }
-                                    peijian_config[HuoPinMingCheng]["GuiGe"].append(GuiGe)
-                                    peijian_config[HuoPinMingCheng]["JiaGe"]=Decimal(JiaGe).quantize(Decimal("0.00"))
-                                else:
-                                    peijian_config[HuoPinMingCheng]["GuiGe"].append(GuiGe)
-                        else:
-                            break
-                        index += 1
-                else:
-                    self.extr_widget.errorMsg(simpleError("表格未找到任何值，可能是个空表格？"))
+                discount_config = {}
+                if "佳满勇气--各渠道折扣" not in conf_excel.sheetnames:
+                    self.extr_widget.errorMsg(simpleError("【佳满勇气--各渠道折扣】不存在，请检查"))
                     return
-                configs["peijian"] = peijian_config
-            # ======================================================================================================
-            
-            # ------------------------------------------佳满勇气--各渠道折扣--------------------------------------------
-            # 佳满勇气--各渠道折扣
-            # 折扣信息描述语言使用规则语言这一列
-            # 样例数据（配件价格表）
-            # {
-            #     "福多多": [(<RangeObject>, "%90"), (<RangeObject>, "%78")],
-            #     "蛋糕叔叔": [(<RangeObject>, "%78")]
-            # }
-            discount_config = {}
-            if "佳满勇气--各渠道折扣" not in conf_excel.sheetnames:
-                self.extr_widget.errorMsg(simpleError("【佳满勇气--各渠道折扣】不存在，请检查"))
-                return
-            else:
-                sheet_discount = conf_excel["佳满勇气--各渠道折扣"]
-                guessXY = self.guessSheetXY(sheet_discount)
-                if guessXY["row"] and guessXY["column"]:
-                    index1 = 1
-                    while True:
-                        QuDaoMingCheng = sheet_discount.cell(row=guessXY["row"] + index1, column=guessXY["column"]).value
-                        GuiZeYuYan = sheet_discount.cell(row=guessXY["row"] + index1, column=guessXY["column"]+2).value
-                        ZheKou = sheet_discount.cell(row=guessXY["row"] + index1, column=guessXY["column"]+3).value
-                        
-                        # 折扣没有填写，则默认没有折扣
-                        if ZheKou is None:
-                            ZheKou = 1.0
+                else:
+                    sheet_discount = conf_excel["佳满勇气--各渠道折扣"]
+                    guessXY = self.guessSheetXY(sheet_discount)
+                    if guessXY["row"] and guessXY["column"]:
+                        index1 = 1
+                        while True:
+                            QuDaoMingCheng = sheet_discount.cell(row=guessXY["row"] + index1, column=guessXY["column"]).value
+                            GuiZeYuYan = sheet_discount.cell(row=guessXY["row"] + index1, column=guessXY["column"]+2).value
+                            ZheKou = sheet_discount.cell(row=guessXY["row"] + index1, column=guessXY["column"]+3).value
+                            
+                            # 折扣没有填写，则默认没有折扣
+                            if ZheKou is None:
+                                ZheKou = 1.0
 
-                        if QuDaoMingCheng:
-                            range_obj, error_msg = self.getRanged(GuiZeYuYan)
-                            if error_msg is not None:
-                                self.extr_widget.errorMsg(error_msg)
+                            if QuDaoMingCheng:
+                                range_obj, error_msg = self.getRanged(GuiZeYuYan)
+                                if error_msg is not None:
+                                    self.extr_widget.errorMsg(error_msg)
+                                else:
+                                    # 向数组中添加range对象和折扣信息
+                                    if QuDaoMingCheng in discount_config:
+                                        discount_config[QuDaoMingCheng].append((range_obj,ZheKou))
+                                    else:
+                                        discount_config[QuDaoMingCheng] = []
+                                        discount_config[QuDaoMingCheng].append((range_obj,ZheKou))
                             else:
-                                # 向数组中添加range对象和折扣信息
-                                if QuDaoMingCheng in discount_config:
-                                    discount_config[QuDaoMingCheng].append((range_obj,ZheKou))
-                                else:
-                                    discount_config[QuDaoMingCheng] = []
-                                    discount_config[QuDaoMingCheng].append((range_obj,ZheKou))
-                        else:
-                            break
-                        index1 += 1
-                else:
-                    self.extr_widget.errorMsg(simpleError("表格未找到任何值，可能是个空表格？"))
-                    return
+                                break
+                            index1 += 1
+                    else:
+                        self.extr_widget.errorMsg(simpleError("表格未找到任何值，可能是个空表格？"))
+                        return
 
-                configs["discount"] = discount_config
+                    configs["discount"] = discount_config
 
-            # ------------------------------------------佳满勇气--各渠道折扣--------------------------------------------
+                # ------------------------------------------佳满勇气--各渠道折扣--------------------------------------------
 
 
-            # ¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥各渠道活动¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥
-            # 各渠道活动
-            # ¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥各渠道活动¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥
-            conf_excel.close()
+                # ¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥各渠道活动¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥
+                # 各渠道活动
+                # ¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥各渠道活动¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥
+                conf_excel.close()
 
-        self.configFileAnalysisDone = True
-        return configs
+            self.configFileAnalysisDone = True
+            return configs
+        except Exception as e:
+            self.extr_widget.errorMsg(exceptError(traceback.format_exc(), reason="分析配置Excel发生了未知错误"))
+            return
     
     def step1ProcessWorker(self):
         if self.configFileAnalysisDone:
@@ -362,24 +366,25 @@ class excelSourceProcess(extraFunc):
 
     def sourceFileHandler(self):
         filename = self.extr_widget.fieleChoose()
+        
         if filename:
             self.step1SourceFileChooseRV.setText(filename[0])
         
-        if not os.path.exists(self.step1SourceFileChooseRV.text()):
-            self.extr_widget.errorMsg(simpleError("Excel文件：【{}】不存在".format(self.step1SourceFileChooseRV.text())))
-            return
+            if not os.path.exists(self.step1SourceFileChooseRV.text()):
+                self.extr_widget.errorMsg(simpleError("Excel文件：【{}】不存在".format(self.step1SourceFileChooseRV.text())))
+                return
 
-        sfile = load_workbook(filename=self.step1SourceFileChooseRV.text(), read_only=True)
-        self.step1SourceDataSheetSelect.clear()
-        self.step1SourceDataSheetSelect.insertItem(0, "选择月份数据")
-        self.step1SourceDataSheetSelect.setItemData(0, None)
-        index = 1
-        for sname in sfile.sheetnames:
-            self.step1SourceDataSheetSelect.insertItem(index, sname)
-            self.step1SourceDataSheetSelect.setItemData(index, sname)
-            index += 1
-        self.step1SourceDataSheetSelect.setCurrentIndex(0)
-        sfile.close()
+            sfile = load_workbook(filename=self.step1SourceFileChooseRV.text(), read_only=True)
+            self.step1SourceDataSheetSelect.clear()
+            self.step1SourceDataSheetSelect.insertItem(0, "选择月份数据")
+            self.step1SourceDataSheetSelect.setItemData(0, None)
+            index = 1
+            for sname in sfile.sheetnames:
+                self.step1SourceDataSheetSelect.insertItem(index, sname)
+                self.step1SourceDataSheetSelect.setItemData(index, sname)
+                index += 1
+            self.step1SourceDataSheetSelect.setCurrentIndex(0)
+            sfile.close()
 
 class toolWindow(QMainWindow, Ui_MainWindow, excelSourceProcess):
     def __init__(self, parent=None):

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>823</width>
+    <width>1054</width>
     <height>941</height>
    </rect>
   </property>
@@ -103,7 +103,7 @@
        <string notr="true">background-color: rgb(255, 255, 255);</string>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab1">
        <attribute name="title">
@@ -138,8 +138,22 @@
                  <verstretch>0</verstretch>
                 </sizepolicy>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>22</pointsize>
+                 <weight>75</weight>
+                 <bold>true</bold>
+                </font>
+               </property>
                <property name="text">
                 <string>✅配件信息配置</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="Line" name="line_7">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
                </property>
               </widget>
              </item>
@@ -172,11 +186,18 @@
                     </sizepolicy>
                    </property>
                    <property name="text">
-                    <string>选择配置文件</string>
+                    <string>【选择配置文件】</string>
                    </property>
                   </widget>
                  </item>
                 </layout>
+               </item>
+               <item>
+                <widget class="Line" name="line_11">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                </widget>
                </item>
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_13">
@@ -228,7 +249,7 @@
                       <string/>
                      </property>
                      <property name="icon">
-                      <iconset resource="../../../qt-resources/icon/resource.icon.qrc">
+                      <iconset resource="../../qt-resources/icon/resource.icon.qrc">
                        <normaloff>:/image/icon/setting-blue.png</normaloff>:/image/icon/setting-blue.png</iconset>
                      </property>
                     </widget>
@@ -284,7 +305,7 @@
                       <string/>
                      </property>
                      <property name="icon">
-                      <iconset resource="../../../qt-resources/icon/resource.icon.qrc">
+                      <iconset resource="../../qt-resources/icon/resource.icon.qrc">
                        <normaloff>:/image/icon/setting-blue.png</normaloff>:/image/icon/setting-blue.png</iconset>
                      </property>
                     </widget>
@@ -333,7 +354,7 @@
                       <string/>
                      </property>
                      <property name="icon">
-                      <iconset resource="../../../qt-resources/icon/resource.icon.qrc">
+                      <iconset resource="../../qt-resources/icon/resource.icon.qrc">
                        <normaloff>:/image/icon/setting-blue.png</normaloff>:/image/icon/setting-blue.png</iconset>
                      </property>
                     </widget>
@@ -373,8 +394,22 @@
                  <verstretch>0</verstretch>
                 </sizepolicy>
                </property>
+               <property name="font">
+                <font>
+                 <pointsize>22</pointsize>
+                 <weight>75</weight>
+                 <bold>true</bold>
+                </font>
+               </property>
                <property name="text">
                 <string>✅源Excel表格</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="Line" name="line_8">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
                </property>
               </widget>
              </item>
@@ -402,7 +437,7 @@
                   </sizepolicy>
                  </property>
                  <property name="text">
-                  <string>选择源文件</string>
+                  <string>【选择源文件】</string>
                  </property>
                 </widget>
                </item>
@@ -424,6 +459,13 @@
               </layout>
              </item>
              <item>
+              <widget class="Line" name="line_10">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
               <layout class="QHBoxLayout" name="horizontalLayout_16">
                <item>
                 <widget class="QPushButton" name="step1ProcessBT">
@@ -435,6 +477,13 @@
                  </property>
                  <property name="text">
                   <string>处理</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="Line" name="line_9">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
                  </property>
                 </widget>
                </item>
@@ -474,6 +523,13 @@
               </layout>
              </item>
              <item>
+              <widget class="Line" name="line_2">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
               <layout class="QHBoxLayout" name="horizontalLayout_15">
                <item>
                 <widget class="QLabel" name="label_12">
@@ -483,21 +539,41 @@
                    <verstretch>0</verstretch>
                   </sizepolicy>
                  </property>
+                 <property name="font">
+                  <font>
+                   <pointsize>18</pointsize>
+                   <weight>75</weight>
+                   <bold>true</bold>
+                  </font>
+                 </property>
                  <property name="text">
-                  <string>  =&gt; 当前进度：</string>
+                  <string>  进度信息：</string>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QLabel" name="processTitle">
                  <property name="text">
-                  <string>【】分析配置文件</string>
+                  <string>...</string>
                  </property>
                 </widget>
                </item>
               </layout>
              </item>
             </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTextBrowser" name="textBrowser">
+            <property name="html">
+             <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:18pt; font-weight:600;&quot;&gt;新增需求：&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;1.  捧味道，2款产品7折结算，其它按照8折结算。&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;2.  追加备注中包含渠道信息（未录入到配件价格表中的）。&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
            </widget>
           </item>
           <item>
@@ -532,7 +608,7 @@
       </widget>
       <widget class="QWidget" name="tab2">
        <attribute name="title">
-        <string>对账分析工具</string>
+        <string>渠道数据分析</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_4">
         <item>
@@ -611,7 +687,7 @@
                   </sizepolicy>
                  </property>
                  <property name="text">
-                  <string>c:\1234.xlsx</string>
+                  <string>【选择源文件】</string>
                  </property>
                 </widget>
                </item>
@@ -871,7 +947,7 @@
                <item>
                 <widget class="QLabel" name="thirdFileChooseReView">
                  <property name="text">
-                  <string>c:\1234.xlsx</string>
+                  <string>【选择源文件】</string>
                  </property>
                 </widget>
                </item>
@@ -1114,7 +1190,7 @@
   </action>
  </widget>
  <resources>
-  <include location="../../../qt-resources/icon/resource.icon.qrc"/>
+  <include location="../../qt-resources/icon/resource.icon.qrc"/>
  </resources>
  <connections/>
 </ui>
