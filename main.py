@@ -15,6 +15,7 @@ from PyQt5.QtGui import QIcon
 from ui.window import Ui_MainWindow
 import resources.icon_rc
 from worker import step1_worker
+from worker import step2_worker
 from error import contentError, exceptError, simpleError, baseError
 
 from openpyxl import load_workbook
@@ -154,10 +155,8 @@ class extraFunc:
 
         return None, simpleError("规则格式未知")
 
-class excelSourceProcess(extraFunc):
-    def setup(self, s):
-        # 额外的Widget初始化
-        self.extr_widget = extraWidgets(self)
+class excelSourceProcessWorker(extraFunc):
+    def setupWorker1(self, s):
 
         # 配置文件是否分析完成
         self.configFileAnalysisDone = False
@@ -178,20 +177,6 @@ class excelSourceProcess(extraFunc):
 
         # 导出
         self.step1ExportBT.clicked.connect(lambda: self.step1ExportWorker())
-    
-    def handleError(self, error):
-        self.extr_widget.errorMsg(error)
-        return
-
-    def handleProgress(self, worker, progres):
-        self.processTitle.setText(progres[0])
-
-        self.progressBar.setValue(progres[1])
-
-        if worker == "step1ProcessWorker":
-            if progres[1] == 100:
-                self.sourceFileAnalysisDone = True
-                self.sourceFileAnalysisResult = progres[2]
 
     def analysisConfigFile(self):
         try:
@@ -386,24 +371,17 @@ class excelSourceProcess(extraFunc):
             self.step1SourceDataSheetSelect.setCurrentIndex(0)
             sfile.close()
 
-class toolWindow(QMainWindow, Ui_MainWindow, excelSourceProcess):
-    def __init__(self, parent=None):
-        super(toolWindow, self).__init__()
-        # 配置信息模版
-        self.templateconfig = {}.fromkeys(("sid","sp","sn"))
+class excelAnalysisWroker(extraFunc):
+    def setupWorker2(self, ss):
+        
+        self.third_configs = []
+        self.source_configs = {}
+        
+        self.thirdAnalysisDone = False
+        self.thirdAnalysisResult = ""
 
-        # 公司订单数据
-        self.sourceExcels = ""
-        self.sourceConfigs = []
-        self.thirdExcels = []
-        self.thirdConfigs = []
-
-        # 初始化window对象
-        self.setupUi(self)
-        self.setup(self)
-
-        # 额外的Widget初始化
-        self.extr_widget = extraWidgets(self)
+        # 进度条值范围
+        self.analysisProgressBar.setRange(0, 100)
 
         self.sourceFileChooseBT.clicked.connect(lambda: self.sourceFileChooseHandler())
         # signal `currentTextChanged`
@@ -412,14 +390,67 @@ class toolWindow(QMainWindow, Ui_MainWindow, excelSourceProcess):
         self.thirdFileChooseBT.clicked.connect(lambda: self.thirdFileChooseHandler())
         self.thirdWS.currentTextChanged.connect(lambda text: self.workSheetChangeHandler(text, filesource="third"))
 
-        # beginAnalysisBT
-        # exportResultBT
-        # self.scene_export_bt.clicked.connect(lambda: self.startExportThread())
+        self.thirdInfoAddBT.clicked.connect(lambda: self.addThirdInfo())
+        self.thirdInfoEmptyBT.clicked.connect(lambda: self.emptyThirdInfo())
 
+        self.beginAnalysisBT.clicked.connect(lambda: self.beginAnalysis())
+        self.analysisWorkerThread = step2_worker.step2ProcessWorker()
+        self.analysisWorkerThread.signalProgress.connect(self.handleProgress)
+        self.analysisWorkerThread.signalError.connect(self.handleError)
+        self.analysisWorkerThread.signalConsole.connect(self.outPutMsg)
+        self.exportResultBT.clicked.connect(lambda: self.exportAnalysisResult())
 
+        self.exportResultBT.clicked.connect(lambda: self.analysisResultExport())
+
+    def analysisResultExport(self):
+        if self.thirdAnalysisDone:
+            filename = self.extr_widget.fieleChoose(mode="saveFile")
+            if filename[0]:
+                if os.path.exists(self.thirdAnalysisResult):
+                    copyfile(self.thirdAnalysisResult, filename[0])
+                else:
+                    self.extr_widget.errorMsg(simpleError("分析结果文件不存在！！"))
+                    return
+        else:
+            self.extr_widget.errorMsg(simpleError("源数据文件表格还未分析完成"))
+            return 
+
+    def beginAnalysis(self):
+        work_sheet = self.sourceWS.currentData()
+        fname = self.sourceFileChooseReView.text()
+
+        if fname == "【选择源文件】":
+            self.extr_widget.errorMsg(simpleError("请选择公司配置所在的文件"))
+            return
+
+        if work_sheet == "选择WorkSheet":
+            self.extr_widget.errorMsg(simpleError("请选择worksheet"))
+            return
+        key_info = self._sourceFileValidCheck(fname, work_sheet)
+        if not key_info["amount_column"] or not key_info["order_column"]:
+            return
+
+        self.source_configs = {
+            "file_name": fname,
+            "work_sheet": work_sheet,
+        }
+        self.source_configs.update(key_info)
+
+        # 清空信息
+        self.analysisErrorMsg.setText("")
+        params = {
+            "source_configs": self.source_configs,
+            "third_configs": self.third_configs,
+            "guessSheetXY": self.guessSheetXY
+        }
+        self.analysisWorkerThread.runParams(**params)
+        self.analysisWorkerThread.start()
+        self.analysisProgressBar.reset()
+    
+    def exportAnalysisResult(self):
+        return
 
     def sourceFileChooseHandler(self):
-        # sourceWS
         filename = self.extr_widget.fieleChoose()
 
         if filename:
@@ -441,62 +472,86 @@ class toolWindow(QMainWindow, Ui_MainWindow, excelSourceProcess):
             self.sourceWS.setCurrentIndex(0)
             swb.close()
 
+    def _sourceFileValidCheck(self, file_name, sheet_name):
+        key_info = {}.fromkeys(["order_column", "order_name", "amount_name", "amount_column"])
+        try:
+            swb = load_workbook(filename=file_name, read_only=True)
+        except:
+            self.extr_widget.errorMsg(simpleError("文件打开失败（%s）".format(file_name)))
+            return
+        else:
+            if not sheet_name:
+                self.extr_widget.errorMsg(simpleError("请选择公司数据源所在的sheet名称"))
+                return key_info
+            work_sheet = swb[sheet_name]
+
+            guessXY = self.guessSheetXY(work_sheet)
+            if guessXY["row"] and guessXY["column"]:
+                column_start = guessXY["column"]
+                while True:
+                    title_name = work_sheet.cell(row=guessXY["row"], column=column_start).value
+                    if title_name == "网店订单号":
+                        key_info["order_column"] = column_start
+                        key_info["order_name"] = "网店订单号"
+                    if title_name == "结算金额":
+                        key_info["amount_column"] = column_start
+                        key_info["amount_name"] = "结算金额"
+                    if not title_name:  break
+                    column_start += 1
+            else:
+                self.extr_widget.errorMsg(simpleError("表格内容为空？"))
+                return key_info
+
+        return key_info
+
     def workSheetChangeHandler(self, sheet_name, filesource=""):
         if sheet_name:
-            if sheet_name  == "选择WorkSheet":
-                return 
-            sourcefilename = self.sourceFileChooseReView.text()
-            swb = load_workbook(filename=sourcefilename, read_only=True)
-            if sheet_name in swb.sheetnames:
-                sheet = swb[sheet_name]
+            if sheet_name == "选择WorkSheet":
+                return
+            else:
+                if filesource == 'source':
+                    fname = self.sourceFileChooseReView.text()
+                    # 检查表格中的订单ID以及订单总价字段
+                    result_info = self._sourceFileValidCheck(fname, sheet_name)
+                    if not result_info["order_column"] or not result_info["amount_column"]:
+                        self.extr_widget.errorMsg(simpleError("表格内容不包含网店订单号或者结算金额"))
+                        return
 
-                guessXY = sefl.guessSheetXY(swb, sheet_name)
-                
-                if guessXY["row"] and guessXY["column"]:
-                    # 每次选择都要清空数据
-                    self.sourceOrderIDColumn.clear()
-                    self.sourceOrderIDColumn.insertItem(0, "请选择列信息")
-                    self.sourceOrderIDColumn.setItemData(0, None)
-                    self.sourceOrderPriceColumn.clear()
-                    self.sourceOrderPriceColumn.insertItem(0, "请选择列信息")
-                    self.sourceOrderPriceColumn.setItemData(0, None)
-                    self.sourceOrderNumberColumn.clear()
-                    self.sourceOrderNumberColumn.insertItem(0, "请选择列信息")
-                    self.sourceOrderNumberColumn.setItemData(0, None)
-                    # 明确不是想要信息的字段
-                    blocked = ["物流公司", "下单时间",  "配送方式", "物流单号", "手机", "订单来源", "订单类型", "省", "市", "客服备注", "应收邮资" 
-                                "追加备注", "订单状态",  "标记", "发货仓库"]
-                    
+                elif filesource == "third":
+                    fname = self.thirdFileChooseReView.text()
+                    try:
+                        twb = load_workbook(filename=fname, read_only=True)
+                    except:
+                        pass
+                    third_ws = twb[sheet_name]
+                    guessXY = self.guessSheetXY(third_ws)
+                    if guessXY["row"] and guessXY["column"]:
+                        self.thirdOrderIDColumn.clear()
+                        self.thirdOrderIDColumn.insertItem(0, "请选择列信息")
+                        self.thirdOrderIDColumn.setItemData(0, "请选择列信息")
+                        
+                        self.thirdOrderAmountColumn.clear()
+                        self.thirdOrderAmountColumn.insertItem(0, "请选择列信息")
+                        self.thirdOrderAmountColumn.setItemData(0, "请选择列信息")
 
-                    titles = []
-                    while True:
-                        value = sheet.cell(row=guessXY["row"], column=guessXY["column"]).value
-                        if value:
-                            if value not in blocked:
-                                titles.append(value)
-                        else:
-                            break
-                        guessXY["column"] = guessXY["column"] + 1
-                    
-                    index = 1
-                    for t in titles:
-                        # 填充订单-选择框
-                        self.sourceOrderIDColumn.insertItem(index, t)
-                        self.sourceOrderIDColumn.setItemData(index, t)
-
-                        # 填充单价-选择框
-                        self.sourceOrderPriceColumn.insertItem(index, t)
-                        self.sourceOrderPriceColumn.setItemData(index, t)
-
-                        # 填充数量-选择框
-                        self.sourceOrderNumberColumn.insertItem(index, t)
-                        self.sourceOrderNumberColumn.setItemData(index, t)
-                        index += 1
-
-            swb.close()
+                        start_column = guessXY["column"]
+                        index = 1
+                        while True:
+                            title_name = third_ws.cell(row=guessXY["row"], column=start_column).value
+                            if not title_name: break
+                            self.thirdOrderIDColumn.insertItem(index, title_name)
+                            self.thirdOrderIDColumn.setItemData(index, start_column)
+                            self.thirdOrderAmountColumn.insertItem(index, title_name)
+                            self.thirdOrderAmountColumn.setItemData(index, start_column)
+                            start_column += 1
+                            index += 1
+                    else:
+                        self.extr_widget.errorMsg(simpleError("表格为空？"))
+                        return
+        else:
+            return
 
     def thirdFileChooseHandler(self):
-        # thirdWS
         filename = self.extr_widget.fieleChoose()
 
         if filename:
@@ -512,12 +567,77 @@ class toolWindow(QMainWindow, Ui_MainWindow, excelSourceProcess):
             self.thirdWS.setItemData(0, None)
             index = 1
             for sn in twb.sheetnames:
-                self.sourceWS.insertItem(index, sn)
-                self.sourceWS.setItemData(index, sn)
+                self.thirdWS.insertItem(index, sn)
+                self.thirdWS.setItemData(index, sn)
                 index += 1 
             self.thirdWS.setCurrentIndex(0)
 
             twb.close()
+
+    def addThirdInfo(self):
+        if not self.thirdOrderIDColumn.currentData() or not self.thirdOrderAmountColumn.currentData():
+            self.extr_widget.errorMsg(simpleError("请选择好配置信息"))
+            return
+        if not self.thirdName.text():
+            self.extr_widget.errorMsg(simpleError("请输入渠道名称"))
+            return
+        template_config = {}.fromkeys(["file_name", "work_sheet", "order_column", "amount_column"])
+        template_config["file_name"]      = self.thirdFileChooseReView.text()
+        template_config["work_sheet"]    = self.thirdWS.currentData()
+        template_config["order_column"]  = self.thirdOrderIDColumn.currentData()
+        template_config["order_name"]  = self.thirdOrderIDColumn.currentText()
+        template_config["amount_column"] = self.thirdOrderAmountColumn.currentData()
+        template_config["amount_name"] = self.thirdOrderAmountColumn.currentText()
+        template_config["third_name"]    = self.thirdName.text()
+
+        self.third_configs.append(template_config)
+        html_fixed = "<html><body><p>要分析的渠道信息：</p><ul>{content}</ul></body></html>"
+        ul_content = ""
+        for cfg in self.third_configs:
+            item = "<li>【{}】【{}】【{}】【{}】【{}】</li>".format(
+                cfg["third_name"], os.path.basename(cfg["file_name"]), cfg["work_sheet"], cfg["order_name"], cfg["amount_name"])
+            ul_content += item
+
+        self.thirdInfoListReview.setHtml(html_fixed.format(content=ul_content))
+
+    def emptyThirdInfo(self):
+        self.third_configs = []
+        self.thirdInfoListReview.setHtml("<html></body>")
+
+class toolWindow(QMainWindow, Ui_MainWindow, excelSourceProcessWorker, excelAnalysisWroker):
+    def __init__(self, parent=None):
+        super(toolWindow, self).__init__()
+
+        # 初始化window对象
+        self.setupUi(self)
+        self.setupWorker1(self)
+        self.setupWorker2(self)
+
+        self.extr_widget = extraWidgets(self)
+    
+    # 以下是公共方法
+    def handleError(self, error):
+        self.extr_widget.errorMsg(error)
+        return
+
+    def outPutMsg(self, out_msg):
+        self.analysisErrorMsg.append(out_msg)
+
+    def handleProgress(self, worker, progres):
+        if worker == "step1ProcessWorker":
+            self.processTitle.setText(progres[0])
+            self.progressBar.setValue(progres[1])
+
+            if progres[1] == 100:
+                self.sourceFileAnalysisDone = True
+                self.sourceFileAnalysisResult = progres[2]
+
+        if worker == "analysisWorker":
+            self.analysisProcessTitle.setText(progres[0])
+            self.analysisProgressBar.setValue(progres[1])
+            if progres[1] == 100:
+                self.thirdAnalysisDone = True
+                self.thirdAnalysisResult = progres[2]
 
 
 if __name__ == "__main__":

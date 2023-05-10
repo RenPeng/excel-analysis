@@ -6,3 +6,7 @@ workdir/
 tmpdir/
 *.backup
 *.swp
+*.xlsx
+build/
+dist/
+main.spec

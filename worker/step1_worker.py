@@ -10,7 +10,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from error import simpleError, contentError, exceptError, baseError
 
 class step1ProcessWorker(QThread):
-    # 0: workername,1: 阶段, 2:进度 
+    # str: workername, list: [0: 阶段, 1:进度, 2: other]
     # progres = ["stage-desc", "stage", "other"]
     signalProgress = pyqtSignal(str, list)
     # 0: baseError
@@ -178,7 +178,7 @@ class step1ProcessWorker(QThread):
                 oitfv____ = sheet.cell(row=rowBegin, column=OrderItemTotalFixed).value
 
                 if qdv____  not in QuDaoTotal:
-                    QuDaoTotal[qdv____] = Decimal(0).quantize(Decimal("0.00"))
+                    QuDaoTotal[qdv____] = Decimal(oitfv____).quantize(Decimal("0.00"))
                 else:
                     if oitfv____:
                         QuDaoTotal[qdv____] += Decimal(oitfv____).quantize(Decimal("0.00"))
@@ -188,6 +188,7 @@ class step1ProcessWorker(QThread):
                 self.signalProgress.emit("step1ProcessWorker", [
                     "【数据处理】【第{}行】".format(rowBegin), current_percent]
                 )
+
 
             # 写入折扣
             secondLoop = start_point["row"]
@@ -217,7 +218,7 @@ class step1ProcessWorker(QThread):
                                 qd_discount = rge_[1]
                                 break
                 else:
-                    print(qd_name_2_)
+                    print("渠道名称没有在配置中：{}".format(qd_name_2_))
                 sheet.cell(row=secondLoop, column=QuDaoDiscount, value=qd_discount)
 
                 self.signalProgress.emit("step1ProcessWorker", 
@@ -230,16 +231,15 @@ class step1ProcessWorker(QThread):
                 sheet.cell(row=secondLoop, column=OrderTotal, value="=SUM(PRODUCT(K{0}, M{0}), L{0}, O{0})".format(row_index_2+ 1))
                 secondLoop += 1
 
-
             # 删除列,删除后，记录的要删除的行要-1
-            init = 0
-            for del_row_num in delete_rows:
-                sheet.delete_rows(del_row_num - init)
-                init += 1
-                self.signalProgress.emit("step1ProcessWorker",[
-                    "【数据处理】【第{}行】删除`订单状态`中取消的订单，`追加备注` 中带有（取消/二次配送/不接算）的订单".format(del_row_num), 
-                    current_percent]
-                )
+            # init = 0
+            # for del_row_num in delete_rows:
+            #     sheet.delete_rows(del_row_num - init)
+            #     init += 1
+            #     self.signalProgress.emit("step1ProcessWorker",[
+            #         "【数据处理】【第{}行】删除`订单状态`中取消的订单，`追加备注` 中带有（取消/二次配送/不接算）的订单".format(del_row_num), 
+            #         current_percent]
+            #     )
 
             result_filename = "result.xlsx"
             abs_filename = os.path.join(os.path.dirname(os.path.dirname(__file__)), result_filename)

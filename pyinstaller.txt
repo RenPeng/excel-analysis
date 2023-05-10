@@ -4,7 +4,7 @@ https://pyinstaller.org/en/stable/usage.html
 
 MacOS:
 -w noconsole
-pyinstaller -w -i resource/xixi.jpeg \
+pyinstaller -w -i resources/xixi.jpeg \
  -p /Users/renpeng/code/project_analysis \
  -p /Users/renpeng/code/project_analysis/venv/lib/python3.9/site-packages \
  --collect-all openpyxl \
